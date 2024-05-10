@@ -10,6 +10,7 @@ type apiConfig struct {
 }
 
 func main() {
+
 	apiCfg := apiConfig{
 		fileserverHits: 0,
 	}
@@ -21,6 +22,8 @@ func main() {
 	httpMux.HandleFunc("POST /api/chirps", createHandle)
 	httpMux.HandleFunc("GET /api/chirps/{chirpId}", getHandle)
 	httpMux.HandleFunc("GET /api/chirps", getHandle)
+	httpMux.HandleFunc("POST /api/users", createUserHandle)
+	httpMux.HandleFunc("POST /api/login", authenticateHandle)
 
 	httpServer := &http.Server{
 		Addr:    ":8080",
