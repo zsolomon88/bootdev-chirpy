@@ -18,14 +18,14 @@ type Chirp struct {
 }
 
 type User struct {
-	Id   int    `json:"id"`
-	Email string `json:"email"`
+	Id       int    `json:"id"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
 type DBStructure struct {
 	Chirps map[int]Chirp `json:"chirps"`
-	Users map[int]User `json:"users"`
+	Users  map[int]User  `json:"users"`
 }
 
 // NewDB creates a new database connection
@@ -51,8 +51,8 @@ func (db *DB) CreateUser(email string, password string) (User, error) {
 		return User{}, err
 	}
 	newUser := User{
-		Id:   len(users) + 1,
-		Email: email,
+		Id:       len(users) + 1,
+		Email:    email,
 		Password: password,
 	}
 
@@ -60,7 +60,7 @@ func (db *DB) CreateUser(email string, password string) (User, error) {
 	userMap := make(map[int]User)
 
 	for i, innerUser := range users {
-		if _, ok := userMap[i + 1]; ok {
+		if _, ok := userMap[i+1]; ok {
 			return User{}, fmt.Errorf("user %s already exists", email)
 		}
 		userMap[i+1] = innerUser
@@ -108,6 +108,29 @@ func (db *DB) CreateChirp(body string) (Chirp, error) {
 	return newChirp, nil
 }
 
+// Update Pwd returns all chirps in the database
+func (db *DB) UpdateUser(usrId int, update User) (User, error) {
+
+	userMap, err := db.loadDB()
+	if err != nil {
+		return User{}, err
+	}
+	if _, ok := userMap.Users[usrId]; !ok {
+		return User{}, fmt.Errorf("user %d not found", usrId)
+	}
+
+	updatedUser := userMap.Users[usrId]
+	updatedUser.Password = update.Password
+	updatedUser.Email = update.Email
+	userMap.Users[usrId] = updatedUser
+	err = db.writeDB(userMap)
+	if err != nil {
+		return User{}, err
+	}
+
+	return updatedUser, nil
+}
+
 // GetUsers returns all chirps in the database
 func (db *DB) GetUsers() ([]User, error) {
 	user := []User{}
@@ -122,6 +145,7 @@ func (db *DB) GetUsers() ([]User, error) {
 	}
 	return user, nil
 }
+
 // GetChirps returns all chirps in the database
 func (db *DB) GetChirps() ([]Chirp, error) {
 	chirps := []Chirp{}
@@ -181,7 +205,7 @@ func (db *DB) writeDB(dbStructure DBStructure) error {
 	if err != nil {
 		return err
 	}
-//	fmt.Printf("Writing: %s\n", dat)
+	//	fmt.Printf("Writing: %s\n", dat)
 
 	writeErr := os.WriteFile(db.path, dat, 0644)
 	if writeErr != nil {

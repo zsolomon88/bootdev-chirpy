@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -8,29 +9,45 @@ func TestCreateUser(t *testing.T) {
 	cases := []struct {
 		input    []string
 		expected User
+		updated  User
 	}{
 		{
-			input: []string{"usr1@boot.dev","pwd1"},
+			input: []string{"usr1@boot.dev", "pwd1"},
 			expected: User{
-				Id:   1,
-				Email: "usr1@boot.dev",
+				Id:       1,
+				Email:    "usr1@boot.dev",
 				Password: "pwd1",
 			},
-		},
-		{
-			input: []string{"usr2@boot.dev","pwd2"},
-			expected: User{
-				Id:   2,
-				Email: "usr2@boot.dev",
-				Password: "pwd2",
+			updated: User{
+				Id:       1,
+				Email:    "updated1@boot.dev",
+				Password: "updated",
 			},
 		},
 		{
-			input: []string{"usr3@boot.dev","pwd3"},
+			input: []string{"usr2@boot.dev", "pwd2"},
 			expected: User{
-				Id:   3,
-				Email: "usr3@boot.dev",
+				Id:       2,
+				Email:    "usr2@boot.dev",
+				Password: "pwd2",
+			},
+			updated: User{
+				Id:       2,
+				Email:    "updated2@boot.dev",
+				Password: "updated",
+			},
+		},
+		{
+			input: []string{"usr3@boot.dev", "pwd3"},
+			expected: User{
+				Id:       3,
+				Email:    "usr3@boot.dev",
 				Password: "pwd3",
+			},
+			updated: User{
+				Id:       3,
+				Email:    "updated3@boot.dev",
+				Password: "updated",
 			},
 		},
 	}
@@ -64,6 +81,27 @@ func TestCreateUser(t *testing.T) {
 			expectedWord := c.expected.Password[i]
 			if word != expectedWord {
 				t.Errorf("cleanInput(%v) == %v, expected %v", c.input, actual.Password, c.expected.Password)
+			}
+		}
+		actualUpdate, updateErr := db.UpdateUser(actual.Id, User{Password: "updated", Email: fmt.Sprintf("updated%d@boot.dev", actual.Id)})
+		if updateErr != nil {
+			t.Errorf("unable to update password: %v", err)
+		}
+		if len(actualUpdate.Password) != len(c.updated.Password) {
+			t.Errorf("updated lengths don't match: '%v' vs '%v'", actual.Password, c.updated.Password)
+		}
+		for i := range actualUpdate.Email {
+			word := actualUpdate.Email[i]
+			expectedWord := c.updated.Email[i]
+			if word != expectedWord {
+				t.Errorf("cleanInput(%v) == %v, expected %v", "updated", actualUpdate.Password, c.updated.Password)
+			}
+		}
+		for i := range actualUpdate.Password {
+			word := actualUpdate.Password[i]
+			expectedWord := c.updated.Password[i]
+			if word != expectedWord {
+				t.Errorf("cleanInput(%v) == %v, expected %v", "updated", actualUpdate.Password, c.updated.Password)
 			}
 		}
 	}

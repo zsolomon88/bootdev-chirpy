@@ -2,3 +2,4 @@ out
 bootdev-chirpy
 database.json
 internal/testdb.json
+.env
