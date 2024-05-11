@@ -131,6 +131,58 @@ func (cfg *apiConfig) updateUsrHandle(w http.ResponseWriter, r *http.Request) {
 	}
 	respondWithJSON(w, 200, updateResponse{Email: updatedUserInfo.Email, Id: updatedUserInfo.Id})
 }
+
+func (cfg *apiConfig) refreshHandle(w http.ResponseWriter, r *http.Request) {
+	refreshToken := r.Header.Get("Authorization")
+	refreshToken = strings.TrimPrefix(refreshToken, "Bearer ")
+
+	dbHandle, err := database.NewDB("./database.json")
+	if err != nil {
+		respondWithError(w, 500, "Unable to open db")
+		return
+	}
+
+	validToken, err := dbHandle.CheckRefreshToken(refreshToken)
+	if err != nil {
+		respondWithError(w, 401, fmt.Sprintf("Invalid refresh token: %v", err))
+		return
+	}
+
+
+	currentTime := time.Now()
+	expiration := time.Now().Add(time.Hour)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{Issuer: "chirpy", IssuedAt: jwt.NewNumericDate(currentTime), ExpiresAt: jwt.NewNumericDate(expiration), Subject: fmt.Sprintf("%d", validToken.Id)})
+	signedToken, err := token.SignedString([]byte(cfg.jwtSecret))
+	if err != nil {
+		respondWithError(w, 500, "Unable to create token")
+		return
+	}
+
+	type RespToken struct {
+		Token string `json:"token"`
+	}
+
+	respondWithJSON(w, 200, RespToken{Token: signedToken})
+}
+
+func (cfg *apiConfig) revokeTokenHandle(w http.ResponseWriter, r *http.Request) {
+	dbHandle, err := database.NewDB("./database.json")
+	if err != nil {
+		respondWithError(w, 500, "unable to open db")
+		return
+	}
+
+	refreshToken := r.Header.Get("Authorization")
+	refreshToken = strings.TrimPrefix(refreshToken, "Bearer ")
+	err = dbHandle.DeleteToken(refreshToken)
+	if err != nil {
+		respondWithError(w, 401, fmt.Sprintf("Invalid refresh token: %v", err))
+		return
+	}
+
+	respondWithJSON(w, 204, "")
+}
+
 func (cfg *apiConfig) authenticateHandle(w http.ResponseWriter, r *http.Request) {
 	type parameters struct {
 		Email      string `json:"email"`
@@ -148,7 +200,7 @@ func (cfg *apiConfig) authenticateHandle(w http.ResponseWriter, r *http.Request)
 	userEmail := strings.TrimSpace(params.Email)
 	userPassword := strings.TrimSpace(params.Password)
 
-	expTime := time.Hour * 24
+	expTime := time.Hour
 	if params.Expiration > 0 && params.Expiration < 60*60*24 {
 		expTime = time.Second * time.Duration(params.Expiration)
 	}
@@ -177,15 +229,24 @@ func (cfg *apiConfig) authenticateHandle(w http.ResponseWriter, r *http.Request)
 					respondWithError(w, 500, "Unable to create token")
 					return
 				}
+
+				refreshExpiration := time.Now().Add(60 * 24 * time.Hour)
+				refreshToken, err := dbHandle.CreateRefreshToken(refreshExpiration, innerUser.Id)
+				if err != nil {
+					respondWithError(w, 500, "Unable to create refresh token")
+					return
+				}
 				type UserResponse struct {
 					Id    int    `json:"id"`
 					Email string `json:"email"`
 					Token string `json:"token"`
+					RefreshToken string `json:"refresh_token"`
 				}
 				successResponse := UserResponse{
 					Id:    innerUser.Id,
 					Email: innerUser.Email,
 					Token: signedToken,
+					RefreshToken: refreshToken.Token,
 				}
 				respondWithJSON(w, 200, successResponse)
 				return

@@ -1,10 +1,13 @@
 package database
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
 	"sync"
+	"time"
 )
 
 type DB struct {
@@ -23,9 +26,16 @@ type User struct {
 	Password string `json:"password"`
 }
 
+type RefreshToken struct {
+	Token string `json:"token"`
+	Expiration time.Time `json:"expiration"`
+	Id int `json:"id"`
+}
+
 type DBStructure struct {
 	Chirps map[int]Chirp `json:"chirps"`
 	Users  map[int]User  `json:"users"`
+	RefreshTokens map[string]RefreshToken `json:"refresh_tokens"`
 }
 
 // NewDB creates a new database connection
@@ -78,6 +88,71 @@ func (db *DB) CreateUser(email string, password string) (User, error) {
 	return newUser, nil
 }
 
+func (db *DB) CreateRefreshToken(expiration time.Time, usrId int) (RefreshToken, error) {
+
+	randomData := make([]byte, 32)
+	rand.Read(randomData)
+	refreshToken := hex.EncodeToString(randomData)
+
+	tokenStruct := RefreshToken {
+		Token: refreshToken,
+		Expiration: expiration,
+		Id: usrId,
+	}
+
+	dbStruct, err := db.loadDB()
+	if err != nil {
+		return RefreshToken{}, err
+	}
+
+	if dbStruct.RefreshTokens == nil {
+		dbStruct.RefreshTokens = make(map[string]RefreshToken)
+	}
+
+	dbStruct.RefreshTokens[tokenStruct.Token] = tokenStruct
+	err = db.writeDB(dbStruct)
+	if err != nil {
+		return RefreshToken{}, err
+	}
+	return tokenStruct, nil
+}
+
+func (db *DB) CheckRefreshToken(token string) (RefreshToken, error) {
+	dbStruct, err := db.loadDB()
+	if err != nil {
+		return RefreshToken{}, err
+	}
+
+	if _, ok := dbStruct.RefreshTokens[token]; !ok {
+		return RefreshToken{}, fmt.Errorf("refresh token not found")
+	}
+
+	if time.Now().After(dbStruct.RefreshTokens[token].Expiration) {
+		return RefreshToken{}, fmt.Errorf("refresh token expired")
+	}
+
+	return dbStruct.RefreshTokens[token], nil
+}
+
+
+func (db *DB) DeleteToken(token string) (error) {
+	dbStruct, err := db.loadDB()
+	if err != nil {
+		return err
+	}
+
+	if _, ok := dbStruct.RefreshTokens[token]; !ok {
+		return fmt.Errorf("refresh token not found")
+	}
+
+	delete(dbStruct.RefreshTokens, token)
+
+	err = db.writeDB(dbStruct)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 // CreateChirp creates a new chirp and saves it to disk
 func (db *DB) CreateChirp(body string) (Chirp, error) {
 	chirps, err := db.GetChirps()

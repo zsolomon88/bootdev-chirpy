@@ -33,6 +33,8 @@ func main() {
 	httpMux.HandleFunc("POST /api/users", apiCfg.createUserHandle)
 	httpMux.HandleFunc("POST /api/login", apiCfg.authenticateHandle)
 	httpMux.HandleFunc("PUT /api/users", apiCfg.updateUsrHandle)
+	httpMux.HandleFunc("POST /api/refresh", apiCfg.refreshHandle)
+	httpMux.HandleFunc("POST /api/revoke", apiCfg.revokeTokenHandle)
 
 	httpServer := &http.Server{
 		Addr:    ":8080",
