@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -165,6 +166,16 @@ func getHandle(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		respondWithError(w, 500, "Unable to obtain data from db")
 		return
+	}
+	sortMethod := r.URL.Query().Get("sort")
+	if sortMethod == "asc" || sortMethod == "" {
+		sort.Slice(chirps, func(i, j int) bool {
+			return chirps[i].Id < chirps[j].Id
+		})
+	} else if sortMethod == "desc" {
+		sort.Slice(chirps, func(i, j int) bool {
+			return chirps[i].Id > chirps[j].Id
+		})
 	}
 
 	authorToGet := r.URL.Query().Get("author_id")
