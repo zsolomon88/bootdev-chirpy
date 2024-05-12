@@ -16,25 +16,27 @@ type DB struct {
 }
 
 type Chirp struct {
-	Id   int    `json:"id"`
-	Body string `json:"body"`
+	Id     int    `json:"id"`
+	Body   string `json:"body"`
+	Author int    `json:"author_id"`
 }
 
 type User struct {
-	Id       int    `json:"id"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Id        int    `json:"id"`
+	Email     string `json:"email"`
+	Password  string `json:"password"`
+	RedStatus bool   `json:"is_chirpy_red"`
 }
 
 type RefreshToken struct {
-	Token string `json:"token"`
+	Token      string    `json:"token"`
 	Expiration time.Time `json:"expiration"`
-	Id int `json:"id"`
+	Id         int       `json:"id"`
 }
 
 type DBStructure struct {
-	Chirps map[int]Chirp `json:"chirps"`
-	Users  map[int]User  `json:"users"`
+	Chirps        map[int]Chirp           `json:"chirps"`
+	Users         map[int]User            `json:"users"`
 	RefreshTokens map[string]RefreshToken `json:"refresh_tokens"`
 }
 
@@ -61,9 +63,10 @@ func (db *DB) CreateUser(email string, password string) (User, error) {
 		return User{}, err
 	}
 	newUser := User{
-		Id:       len(users) + 1,
-		Email:    email,
-		Password: password,
+		Id:        len(users) + 1,
+		Email:     email,
+		Password:  password,
+		RedStatus: false,
 	}
 
 	users = append(users, newUser)
@@ -94,10 +97,10 @@ func (db *DB) CreateRefreshToken(expiration time.Time, usrId int) (RefreshToken,
 	rand.Read(randomData)
 	refreshToken := hex.EncodeToString(randomData)
 
-	tokenStruct := RefreshToken {
-		Token: refreshToken,
+	tokenStruct := RefreshToken{
+		Token:      refreshToken,
 		Expiration: expiration,
-		Id: usrId,
+		Id:         usrId,
 	}
 
 	dbStruct, err := db.loadDB()
@@ -134,8 +137,7 @@ func (db *DB) CheckRefreshToken(token string) (RefreshToken, error) {
 	return dbStruct.RefreshTokens[token], nil
 }
 
-
-func (db *DB) DeleteToken(token string) (error) {
+func (db *DB) DeleteToken(token string) error {
 	dbStruct, err := db.loadDB()
 	if err != nil {
 		return err
@@ -153,15 +155,17 @@ func (db *DB) DeleteToken(token string) (error) {
 	}
 	return nil
 }
+
 // CreateChirp creates a new chirp and saves it to disk
-func (db *DB) CreateChirp(body string) (Chirp, error) {
+func (db *DB) CreateChirp(body string, author int) (Chirp, error) {
 	chirps, err := db.GetChirps()
 	if err != nil {
 		return Chirp{}, err
 	}
 	newChirp := Chirp{
-		Id:   len(chirps) + 1,
-		Body: body,
+		Id:     len(chirps) + 1,
+		Body:   body,
+		Author: author,
 	}
 
 	chirps = append(chirps, newChirp)
@@ -197,6 +201,7 @@ func (db *DB) UpdateUser(usrId int, update User) (User, error) {
 	updatedUser := userMap.Users[usrId]
 	updatedUser.Password = update.Password
 	updatedUser.Email = update.Email
+	updatedUser.RedStatus = update.RedStatus
 	userMap.Users[usrId] = updatedUser
 	err = db.writeDB(userMap)
 	if err != nil {
@@ -219,6 +224,20 @@ func (db *DB) GetUsers() ([]User, error) {
 		user = append(user, usr)
 	}
 	return user, nil
+}
+
+// GetChirps returns all chirps in the database
+func (db *DB) DeleteChirp(id int) error {
+	chirpMap, err := db.loadDB()
+	if err != nil {
+		return err
+	}
+	if _, ok := chirpMap.Chirps[id]; ok {
+		delete(chirpMap.Chirps, id)
+		err = db.writeDB(chirpMap)
+		return err
+	}
+	return fmt.Errorf("chirp not found")
 }
 
 // GetChirps returns all chirps in the database

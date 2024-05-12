@@ -116,22 +116,25 @@ func TestCreateTweet(t *testing.T) {
 		{
 			input: "This is a test chirp 1",
 			expected: Chirp{
-				Id:   1,
-				Body: "This is a test chirp 1",
+				Id:     1,
+				Body:   "This is a test chirp 1",
+				Author: 1,
 			},
 		},
 		{
 			input: "This is a test chirp 2",
 			expected: Chirp{
-				Id:   2,
-				Body: "This is a test chirp 2",
+				Id:     2,
+				Body:   "This is a test chirp 2",
+				Author: 1,
 			},
 		},
 		{
 			input: "This is a test chirp 3",
 			expected: Chirp{
-				Id:   3,
-				Body: "This is a test chirp 3",
+				Id:     3,
+				Body:   "This is a test chirp 3",
+				Author: 1,
 			},
 		},
 	}
@@ -142,7 +145,7 @@ func TestCreateTweet(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		actual, createErr := db.CreateChirp(c.input)
+		actual, createErr := db.CreateChirp(c.input, 1)
 		if createErr != nil {
 			t.Errorf("unable to create chirp: %v", err)
 		}

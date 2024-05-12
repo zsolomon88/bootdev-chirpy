@@ -45,12 +45,14 @@ func (cfg *apiConfig) createUserHandle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type UserReply struct {
-		Id    int    `json:"id"`
-		Email string `json:"email"`
+		Id        int    `json:"id"`
+		Email     string `json:"email"`
+		RedStatus bool   `json:"is_chirpy_red"`
 	}
 	jsonReply := UserReply{
-		Id:    usr.Id,
-		Email: usr.Email,
+		Id:        usr.Id,
+		Email:     usr.Email,
+		RedStatus: usr.RedStatus,
 	}
 	respondWithJSON(w, 201, jsonReply)
 }
@@ -113,11 +115,19 @@ func (cfg *apiConfig) updateUsrHandle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userMap, err := dbHandle.GetUsers()
+
+	if err != nil {
+		respondWithError(w, 500, "Unable to connect to database")
+		return
+	}
+
 	intId, _ := strconv.Atoi(usrId)
 	updatedUserInfo := database.User{
-		Email:    userEmail,
-		Password: string(hashedPwd),
-		Id:       intId,
+		Email:     userEmail,
+		Password:  string(hashedPwd),
+		Id:        intId,
+		RedStatus: userMap[intId].RedStatus,
 	}
 	_, err = dbHandle.UpdateUser(intId, updatedUserInfo)
 	if err != nil {
@@ -126,8 +136,9 @@ func (cfg *apiConfig) updateUsrHandle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type updateResponse struct {
-		Email string `json:"email"`
-		Id    int    `json:"id"`
+		Email     string `json:"email"`
+		Id        int    `json:"id"`
+		RedStatus bool   `json:"is_chirpy_red"`
 	}
 	respondWithJSON(w, 200, updateResponse{Email: updatedUserInfo.Email, Id: updatedUserInfo.Id})
 }
@@ -147,7 +158,6 @@ func (cfg *apiConfig) refreshHandle(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 401, fmt.Sprintf("Invalid refresh token: %v", err))
 		return
 	}
-
 
 	currentTime := time.Now()
 	expiration := time.Now().Add(time.Hour)
@@ -237,16 +247,18 @@ func (cfg *apiConfig) authenticateHandle(w http.ResponseWriter, r *http.Request)
 					return
 				}
 				type UserResponse struct {
-					Id    int    `json:"id"`
-					Email string `json:"email"`
-					Token string `json:"token"`
+					Id           int    `json:"id"`
+					Email        string `json:"email"`
+					Token        string `json:"token"`
 					RefreshToken string `json:"refresh_token"`
+					RedStatus    bool   `json:"is_chirpy_red"`
 				}
 				successResponse := UserResponse{
-					Id:    innerUser.Id,
-					Email: innerUser.Email,
-					Token: signedToken,
+					Id:           innerUser.Id,
+					Email:        innerUser.Email,
+					Token:        signedToken,
 					RefreshToken: refreshToken.Token,
+					RedStatus:    innerUser.RedStatus,
 				}
 				respondWithJSON(w, 200, successResponse)
 				return
